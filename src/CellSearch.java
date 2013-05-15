@@ -62,9 +62,10 @@ public class CellSearch extends PApplet {
 
 	float tolerance;
 	int cellSize;
-	// SDrop drop;
 
 	boolean validArea;
+
+	Timer time;
 
 	File file;
 	File[] files;
@@ -99,7 +100,6 @@ public class CellSearch extends PApplet {
 		tolerance = (float) thresholdSlider.getValueI() * 255 / 100;
 
 		validArea = true;
-		// drop = new SDrop(this);
 		imgIndex = 0;
 
 		drawBlob = false;
@@ -107,6 +107,7 @@ public class CellSearch extends PApplet {
 		drawCenter = true;
 		drawFill = true;
 
+		time = new Timer();
 		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		} catch (final Exception e) {
@@ -120,13 +121,12 @@ public class CellSearch extends PApplet {
 	public void draw() {
 		if (img != null) {
 
-			background(250);
+			background(tolerance - 1);
 
-			// Un-comment for rotation
 			pushMatrix();
 			imageMode(CENTER);
 			translate(img.width / 2, img.height / 2);
-			rotate(rotaterKnob.getValueF() * PI);
+			rotate((float) (rotaterKnob.getValueF() / 180.0 * PI));
 
 			image(img, 0, adjustment); // fast way to draw an image
 			colorMode(RGB);
@@ -134,7 +134,7 @@ public class CellSearch extends PApplet {
 			if (drawFill) {
 				colorCells();
 			}
-			
+
 			strokeWeight(0);
 			fill(0, 0, 255);
 
@@ -151,8 +151,6 @@ public class CellSearch extends PApplet {
 			}
 			loadingLabel.setText(((Integer) numOfCells).toString());
 
-			// Un-comment for rotation
-			
 			fill(0, 200, 150);
 			for (PVector p : tomsPoints) {
 				ellipse(p.x, p.y, 8, 8);
@@ -162,9 +160,15 @@ public class CellSearch extends PApplet {
 			noFill();
 			rect(xBox, yBox, boxWidth, boxHeight);
 			fill(250, 0, 0); // red
+
+			fill(0, 255, 239);
+			if (imgs != null) {
+				textSize(16);
+				text("Image:" + (imgIndex + 1) + "/" + imgs.length, 1000, 56);
+			}
+			text("Rotation:" + (int) rotaterKnob.getValueF(), 1110, 56);
 		} else {
 			background(10);
-			text("Drag an Image", 200, 200);
 		}
 	}
 
@@ -200,11 +204,11 @@ public class CellSearch extends PApplet {
 				if (drawBlobs) {
 					strokeWeight(2);
 					stroke(64, 224, 208);
-					tempVector1 = rotatePoints(b.xMin * img.width, b.yMin
+					tempVector1 = rotatePoints(b.x * img.width, b.y
 							* img.height + adjustment);
-					tempVector2 = rotatePoints(b.w * img.width, b.h
-							* img.height);
-					rect(tempVector1.x, tempVector1.y, tempVector2.x,
+					tempVector2 = new PVector(b.w * img.width, b.h * img.height);
+					rect(tempVector1.x - b.w * img.width / 2, tempVector1.y
+							- b.h * img.height / 2, tempVector2.x,
 							tempVector2.y);
 				}
 				// Centers
@@ -264,10 +268,12 @@ public class CellSearch extends PApplet {
 		float tempX = xO;
 		float tempY = yO;
 
-		xO = tempX * (float) Math.cos(rotaterKnob.getValueF() * PI) + tempY
-				* (float) Math.sin(rotaterKnob.getValueF() * PI);
-		yO = -tempX * (float) Math.sin(rotaterKnob.getValueF() * PI) + tempY
-				* (float) Math.cos(rotaterKnob.getValueF() * PI);
+		xO = tempX * (float) Math.cos(rotaterKnob.getValueF() / 180.0 * PI)
+				+ tempY
+				* (float) Math.sin(rotaterKnob.getValueF() / 180.0 * PI);
+		yO = -tempX * (float) Math.sin(rotaterKnob.getValueF() / 180.0 * PI)
+				+ tempY
+				* (float) Math.cos(rotaterKnob.getValueF() / 180.0 * PI);
 
 		x = xO + img.width / 2;
 		y = img.height / 2 - yO;
@@ -281,7 +287,6 @@ public class CellSearch extends PApplet {
 		try {
 			fc.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
 			fc.setDialogTitle("Pick an Image or Folder of Images");
-			fc.setApproveButtonText("Accept file");
 			returnVal = fc.showOpenDialog(this);
 		} catch (final ArrayIndexOutOfBoundsException e) {
 			System.out.println("Error...");
@@ -291,10 +296,9 @@ public class CellSearch extends PApplet {
 			file = fc.getSelectedFile();
 			System.out.println(file);
 
-			final FilenameFilter filter = new FilenameFilter() {
+			FilenameFilter filter = new FilenameFilter() {
 				@Override
-				public boolean accept(final File directory,
-						final String fileName) {
+				public boolean accept(File directory, String fileName) {
 					return fileName.endsWith(".bmp")
 							|| fileName.endsWith(".png");
 				}
@@ -326,7 +330,7 @@ public class CellSearch extends PApplet {
 				}
 				switchImage(imgs[0]);
 
-			} catch (final IOException e) {
+			} catch (IOException e) {
 				e.printStackTrace();
 			}
 
@@ -384,15 +388,9 @@ public class CellSearch extends PApplet {
 				boxHeight *= -1;
 			}
 			blX.setText(Integer.toString(xBox));
-			blY.setText(Integer.toString(displayHeight - yBox - boxHeight)); // -67
-			// if
-			// not
-			// full
-			// screen
+			blY.setText(Integer.toString(displayHeight - yBox - boxHeight));
 			trX.setText(Integer.toString(xBox + boxWidth));
-			trY.setText(Integer.toString(displayHeight - yBox)); // -67 if not
-			// full
-			// screen
+			trY.setText(Integer.toString(displayHeight - yBox));
 		}
 		validArea = true;
 	}
@@ -405,18 +403,6 @@ public class CellSearch extends PApplet {
 	@Override
 	public void keyPressed() {
 
-		// if (keyCode == 'Q') {
-		// thresh += .05;
-		// }
-		// if (keyCode == 'W') {
-		// thresh -= .05;
-		// }
-
-		if (keyCode == ENTER) {
-			blobber();
-			
-		}
-
 		if (keyCode == UP && imgs != null && imgIndex < imgs.length - 1) {
 			imgIndex++;
 			switchImage(imgs[imgIndex]);
@@ -428,49 +414,29 @@ public class CellSearch extends PApplet {
 			resetBox();
 		}
 
+		if (keyCode == LEFT && rotaterKnob.getValueF() <= 360 - 15) {
+			float temp = rotaterKnob.getValueF();
+			rotaterKnob.setValue(temp + 15);
+		}
+		if (keyCode == RIGHT && rotaterKnob.getValueF() >= 15) {
+			float temp = rotaterKnob.getValueF();
+			rotaterKnob.setValue(temp - 15);
+		}
 
 	}
 
-	//
-	// public void dropEvent(DropEvent theDropEvent) {
-	// // println("");
-	// // println("isFile()\t" + theDropEvent.isFile());
-	// // println("isImage()\t" + theDropEvent.isImage());
-	// // println("isURL()\t" + theDropEvent.isURL());
-	//
-	// BufferedImage bimg;
-	// try {
-	// bimg = ImageIO.read(new File(theDropEvent.filePath()));
-	// PImage imag= new
-	// PImage(bimg.getWidth(),bimg.getHeight(),PConstants.ARGB);
-	// bimg.getRGB(0, 0, imag.width, imag.height, imag.pixels, 0, imag.width);
-	// imag.updatePixels();
-	// imag.resize(displayWidth*9/10, displayHeight-adjustment);
-	// img = imag;
-	//
-	// } catch (IOException e) {
-	// e.printStackTrace();
-	// }
-	// boxWidth = 0;
-	// boxHeight = 0;
-	// xBox = 0;
-	// yBox = 0;
-
-	//
-	// }
-
 	public void savePic() {
 		fc.setDialogTitle("Pick a destination to save your Image");
-		final int result = fc.showSaveDialog(this);
+		int result = fc.showSaveDialog(this);
 
 		Rectangle screenRect;
 		if (xBox == 0 && yBox == 0) {
 			screenRect = new Rectangle(displayWidth, displayHeight);
 		} else {
-			screenRect = new Rectangle(xBox + 20, yBox - 40, boxWidth + 100,
-					boxHeight + 100);
+			screenRect = new Rectangle(xBox - 30, yBox - 30, boxWidth + 60,
+					boxHeight + 60);
 		}
-		final File file = fc.getSelectedFile();
+		File file = fc.getSelectedFile();
 		if (result == JFileChooser.APPROVE_OPTION) {
 			;
 		}
@@ -480,53 +446,18 @@ public class CellSearch extends PApplet {
 				Thread.sleep(200);
 				capture = new Robot().createScreenCapture(screenRect);
 				ImageIO.write(capture, "bmp", file);
-			} catch (final FileNotFoundException e) {
+			} catch (FileNotFoundException e) {
 				e.printStackTrace();
-			} catch (final IOException e) {
+			} catch (IOException e) {
 				e.printStackTrace();
-			} catch (final AWTException e) {
+			} catch (AWTException e) {
 				e.printStackTrace();
-			} catch (final InterruptedException e1) {
+			} catch (InterruptedException e1) {
 				e1.printStackTrace();
 			}
 		}
 
 	}
-
-	// public void exportData(){
-	// String outFileName = "testData";
-	// PrintWriter data = null;
-	// try {
-	// data = new PrintWriter(new FileOutputStream(outFileName));
-	// data.println("# Results for " + imgs.length + " images");
-	// data.println("# ---------------");
-	// data.println("Number of Cells  |  Img Name");
-	// data.println("# ---------------");
-	// } catch (FileNotFoundException e) {
-	// e.printStackTrace();
-	// }
-	//
-	// for(PImage pic: imgs){
-	// img = pic;
-	// image(img, 0, adjustment);
-	// resetPic();
-	//
-	// loadPixels();
-	//
-	// cells = countCells(0,adjustment,img.width,img.height);
-	// points = new ArrayList<PVector>();
-	// for (Cell c: cells) {
-	// points.add(new PVector((int)c.center.x,(int) c.center.y));
-	// }
-	//
-	// updatePixels();
-	//
-	// data.println(img.toString() + "   " + cells.size());
-	//
-	// }
-	// data.close();
-	//
-	// }
 
 	public void switchImage(final PImage image) {
 		img = image;
@@ -543,6 +474,8 @@ public class CellSearch extends PApplet {
 		final int regionHeight = boxHeight;
 		final int regionWidth = boxWidth;
 
+		time.reset();
+
 		WritableWorkbook workbook;
 		try {
 			final Date date = new Date();
@@ -552,7 +485,7 @@ public class CellSearch extends PApplet {
 			final Label nameLabel = new Label(0, 0, "Results for "
 					+ imgs.length + " images");
 			sheet.addCell(nameLabel);
-			final Label imageLabel = new Label(0, 1, "A label record");
+			final Label imageLabel = new Label(0, 1, "Image Number");
 			sheet.addCell(imageLabel);
 			final Label cellLabel = new Label(1, 1, "Number of Cells");
 			sheet.addCell(cellLabel);
@@ -565,14 +498,10 @@ public class CellSearch extends PApplet {
 			int count;
 
 			double totalCells = 0;
-			final float totalTime = 0;
 
-			final float start = System.currentTimeMillis();
-
-			float tStart;
-			float tFinish;
 			for (int i = 0; i < imgs.length; i++) {
-				tStart = System.currentTimeMillis();
+				time.start();
+
 				img = imgs[i];
 				switchImage(img);
 
@@ -601,11 +530,10 @@ public class CellSearch extends PApplet {
 
 				cellCount = new Number(1, i + 2, count);
 				sheet.addCell(cellCount);
-				imageName = new Number(0, i + 2, i);
+				imageName = new Number(0, i + 2, i + 1);
 				sheet.addCell(imageName);
 
-				tFinish = System.currentTimeMillis();
-				timeEllapse = new Number(2, i + 2, tFinish - tStart);
+				timeEllapse = new Number(2, i + 2, (float) time.stop() / 1000);
 				sheet.addCell(timeEllapse);
 
 			}
@@ -614,10 +542,10 @@ public class CellSearch extends PApplet {
 			Label averageLabel = new Label(0, imgs.length + 5,
 					"Avergae cell per image");
 			sheet.addCell(averageLabel);
-			totalLabel = new Label(0, imgs.length + 6, "Total time");
+			totalLabel = new Label(0, imgs.length + 6, "Total time (seconds)");
 			sheet.addCell(totalLabel);
 			averageLabel = new Label(0, imgs.length + 7,
-					"Avergae time per image");
+					"Avergae time per image (seconds)");
 			sheet.addCell(averageLabel);
 
 			Number average;
@@ -628,10 +556,11 @@ public class CellSearch extends PApplet {
 			total = new Number(1, imgs.length + 5, totalCells / imgs.length);
 			sheet.addCell(total);
 
-			average = new Number(1, imgs.length + 6, System.currentTimeMillis()
-					- start);
+			average = new Number(1, imgs.length + 6,
+					(float) time.elapsed() / 1000);
 			sheet.addCell(average);
-			total = new Number(1, imgs.length + 7, totalTime / imgs.length);
+			total = new Number(1, imgs.length + 7, (float) time.elapsed()
+					/ imgs.length / 1000);
 			sheet.addCell(total);
 
 			workbook.write();
@@ -702,14 +631,13 @@ public class CellSearch extends PApplet {
 		// println("makePoints - GButton event occured " +
 		// System.currentTimeMillis()%10000000 );
 		xBox = parseInt(blX.getText());
-		yBox = displayHeight - parseInt(trY.getText()); // -67 if not full
-		// screen
+		yBox = displayHeight - parseInt(trY.getText());
 		boxWidth = parseInt(trX.getText()) - xBox;
 		boxHeight = parseInt(trY.getText()) - parseInt(blY.getText());
 	} // _CODE_:makePoints:458437:
 
 	public void saveButtonChange(final GButton source, final GEvent event) { // _CODE_:makePoints:458437:
-		// savePic();
+		savePic();
 	} // _CODE_:makePoints:458437:
 
 	public void browseButtonChange(final GButton source, final GEvent event) { // _CODE_:makePoints:458437:
@@ -832,7 +760,7 @@ public class CellSearch extends PApplet {
 		rotaterKnob.setOverArcOnly(false);
 		rotaterKnob.setIncludeOverBezel(false);
 		rotaterKnob.setShowTrack(true);
-		rotaterKnob.setLimits(0, 0, 2);
+		rotaterKnob.setLimits(0, 0, 360);
 		rotaterKnob.setNbrTicks(4);
 		rotaterKnob.setShowTicks(true);
 		rotaterKnob.setOpaque(false);
